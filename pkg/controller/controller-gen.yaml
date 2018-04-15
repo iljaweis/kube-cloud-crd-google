@@ -1,0 +1,25 @@
+package: main
+clientsets:
+- name: kubernetes
+  defaultresync: 30
+  apis: []
+- name: google
+  import: github.com/iljaweis/kube-cloud-crd-google
+  defaultresync: 30
+  apis:
+  - name: google
+    group: google.cloudcrd.weisnix.org
+    version: v1
+    resources:
+    - name: Project
+      plural: Projects
+      scope: Namespaced
+      create: true
+      update: true
+      delete: true
+    - name: Instance
+      plural: Instances
+      scope: Namespaced
+      create: true
+      update: true
+      delete: true

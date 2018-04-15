@@ -1,0 +1,20 @@
+apiVersion: google.cloudcrd.weisnix.org/v1
+kind: Project
+metadata:
+  name: myproject
+spec:
+  name: XXXX
+  region: us-east1
+  zone: us-east1-b
+  serviceaccount: xxxx@xxxx.iam.gserviceaccount.com
+  serviceaccountsecret: myproject-sa
+---
+apiVersion: google.cloudcrd.weisnix.org/v1
+kind: Instance
+metadata:
+  name: in1
+spec:
+  project: myproject
+  type: n1-standard-1
+  image: projects/debian-cloud/global/images/debian-9-stretch-v20180401
+  disksize: 10
