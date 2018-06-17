@@ -49,6 +49,10 @@ type Controller struct {
 	InstanceLister googlelisterv1.InstanceLister
 	InstanceSynced cache.InformerSynced
 
+	DatabaseQueue workqueue.RateLimitingInterface
+	DatabaseLister googlelisterv1.DatabaseLister
+	DatabaseSynced cache.InformerSynced
+
 
 
 
@@ -171,6 +175,55 @@ func (c *Controller) Initialize() {
 
 
 
+	DatabaseInformer := c.GoogleFactory.Google().V1().Databases()
+	DatabaseQueue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+	c.DatabaseQueue = DatabaseQueue
+	c.DatabaseLister = DatabaseInformer.Lister()
+	c.DatabaseSynced = DatabaseInformer.Informer().HasSynced
+
+	DatabaseInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+
+		AddFunc: func(obj interface{}) {
+			if key, err := cache.MetaNamespaceKeyFunc(obj); err == nil {
+				DatabaseQueue.Add(key)
+			}
+		},
+
+
+		UpdateFunc: func(old, new interface{}) {
+			if key, err := cache.MetaNamespaceKeyFunc(new); err == nil {
+				DatabaseQueue.Add(key)
+			}
+		},
+
+
+		DeleteFunc: func(obj interface{}) {
+			o, ok := obj.(*googlev1.Database)
+
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					log.Errorf("couldn't get object from tombstone %+v", obj)
+					return
+				}
+				o, ok = tombstone.Obj.(*googlev1.Database)
+				if !ok {
+					log.Errorf("tombstone contained object that is not a Database %+v", obj)
+					return
+				}
+			}
+
+			err := c.DatabaseDeleted(o)
+
+			if err != nil {
+				log.Errorf("failed to process deletion: %s", err.Error())
+			}
+		},
+
+	})
+
+
+
 
 
 	return
@@ -198,8 +251,9 @@ func (c *Controller) Run(stopCh <-chan struct{}) {
 
 	defer c.ProjectQueue.ShutDown()
 	defer c.InstanceQueue.ShutDown()
+	defer c.DatabaseQueue.ShutDown()
 
-	if !cache.WaitForCacheSync(stopCh, c.ProjectSynced, c.InstanceSynced) {
+	if !cache.WaitForCacheSync(stopCh, c.ProjectSynced, c.InstanceSynced, c.DatabaseSynced) {
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 		return
 	}
@@ -210,6 +264,8 @@ func (c *Controller) Run(stopCh <-chan struct{}) {
 	go wait.Until(c.runProjectWorker, time.Second, stopCh)
 
 	go wait.Until(c.runInstanceWorker, time.Second, stopCh)
+
+	go wait.Until(c.runDatabaseWorker, time.Second, stopCh)
 
 
 	log.Debugf("started workers")
@@ -332,5 +388,63 @@ func (c *Controller) processInstance(key string) error {
 	}
 
 	return c.InstanceCreatedOrUpdated(o)
+
+}
+
+func (c *Controller) runDatabaseWorker() {
+	for c.processNextDatabase() {
+	}
+}
+
+func (c *Controller) processNextDatabase() bool {
+	obj, shutdown := c.DatabaseQueue.Get()
+	if shutdown {
+		return false
+	}
+
+	err := func(obj interface{}) error {
+		defer c.DatabaseQueue.Done(obj)
+		var key string
+		var ok bool
+
+		if key, ok = obj.(string); !ok {
+			c.DatabaseQueue.Forget(obj)
+			runtime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
+			return nil
+		}
+
+		if err := c.processDatabase(key); err != nil {
+			return fmt.Errorf("error syncing '%s': %s", key, err.Error())
+		}
+
+		c.DatabaseQueue.Forget(obj)
+		return nil
+	}(obj)
+
+	if err != nil {
+		runtime.HandleError(err)
+		return true
+	}
+
+	return true
+}
+
+func (c *Controller) processDatabase(key string) error {
+
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return fmt.Errorf("could not parse name %s: %s", key, err.Error())
+	}
+
+	o, err := c.DatabaseLister.Databases(namespace).Get(name)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return fmt.Errorf("tried to get %s, but it was not found", key)
+		} else {
+			return fmt.Errorf("error getting %s from cache: %s", key, err.Error())
+		}
+	}
+
+	return c.DatabaseCreatedOrUpdated(o)
 
 }

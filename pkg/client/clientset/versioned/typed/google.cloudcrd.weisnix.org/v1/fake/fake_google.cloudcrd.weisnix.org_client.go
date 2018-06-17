@@ -28,6 +28,10 @@ type FakeGoogleV1 struct {
 	*testing.Fake
 }
 
+func (c *FakeGoogleV1) Databases(namespace string) v1.DatabaseInterface {
+	return &FakeDatabases{c, namespace}
+}
+
 func (c *FakeGoogleV1) Instances(namespace string) v1.InstanceInterface {
 	return &FakeInstances{c, namespace}
 }

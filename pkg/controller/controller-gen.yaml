@@ -23,3 +23,9 @@ clientsets:
       create: true
       update: true
       delete: true
+    - name: Database
+      plural: Databases
+      scope: Namespaced
+      create: true
+      update: true
+      delete: true

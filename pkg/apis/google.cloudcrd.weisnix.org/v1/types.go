@@ -14,6 +14,7 @@ type Project struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec ProjectSpec `json:"spec"`
+	Status ProjectStatus `json:"status"`
 }
 
 type ProjectSpec struct {
@@ -22,6 +23,10 @@ type ProjectSpec struct {
 	Zone                 string `json:"zone"`
 	ServiceAccount       string `json:"serviceaccount"`
 	ServiceAccountSecret string `json:"serviceaccountsecret"`
+}
+
+type ProjectStatus struct {
+
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -61,4 +66,32 @@ type InstanceList struct {
 	metav1.ListMeta `json:"metadata"`
 
 	Items []Instance `json:"items"`
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// A Managed Database
+type Database struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec DatabaseSpec `json:"spec"`
+}
+
+type DatabaseSpec struct {
+	Project string `json:"project"`
+	Type     string `json:"type"`
+	AuthorizedNetworks []string  `json:"authorizednetworks"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// DatabaseList is a list of Database resources
+type DatabaseList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []Database `json:"items"`
 }

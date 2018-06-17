@@ -45,7 +45,7 @@ func (c *Clientset) GoogleV1() googlev1.GoogleV1Interface {
 	return c.googleV1
 }
 
-// Deprecated: Google retrieves the default version of GoogleClient.
+// Deprecated: Google retrieves the default version of NewGoogleClient.
 // Please explicitly pick a version.
 func (c *Clientset) Google() googlev1.GoogleV1Interface {
 	return c.googleV1

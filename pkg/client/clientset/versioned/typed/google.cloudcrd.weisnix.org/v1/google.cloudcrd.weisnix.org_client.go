@@ -27,6 +27,7 @@ import (
 
 type GoogleV1Interface interface {
 	RESTClient() rest.Interface
+	DatabasesGetter
 	InstancesGetter
 	ProjectsGetter
 }
@@ -34,6 +35,10 @@ type GoogleV1Interface interface {
 // GoogleV1Client is used to interact with features provided by the google.cloudcrd.weisnix.org group.
 type GoogleV1Client struct {
 	restClient rest.Interface
+}
+
+func (c *GoogleV1Client) Databases(namespace string) DatabaseInterface {
+	return newDatabases(c, namespace)
 }
 
 func (c *GoogleV1Client) Instances(namespace string) InstanceInterface {
